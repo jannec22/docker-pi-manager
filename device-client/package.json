@@ -1,0 +1,26 @@
+{
+  "name": "device-client",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/client.js",
+  "scripts": {
+    "start": "npm run build && node dist/client.js",
+    "build": "vite build",
+    "test": "npx tsx src/test.ts",
+    "prepare": "ts-patch install"
+  },
+  "dependencies": {
+    "@trpc/client": "^11.2.0",
+    "@trpc/server": "^11.2.0",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "@ryoppippi/unplugin-typia": "^2.6.4",
+    "@types/ws": "^8.18.1",
+    "ts-patch": "^3.3.0",
+    "typescript": "~5.8.3",
+    "typia": "^9.3.1",
+    "vite": "^6.3.5",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
+}

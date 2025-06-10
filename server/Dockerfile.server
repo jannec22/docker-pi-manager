@@ -1,0 +1,42 @@
+FROM node:20 AS builder
+
+WORKDIR /app
+
+COPY frontend/package*.json ./frontend/
+COPY backend/package*.json ./backend/
+
+RUN npm --prefix frontend install
+RUN npm --prefix backend install
+
+COPY shared-types ./shared-types
+COPY backend ./backend
+COPY frontend ./frontend
+WORKDIR /app/frontend
+RUN npx @biomejs/biome check --write
+RUN npm run build
+WORKDIR /app/backend
+RUN npx @biomejs/biome check --write
+RUN npx prisma generate
+RUN npx prisma migrate deploy
+RUN npm run build
+
+FROM node:20
+
+WORKDIR /app
+
+COPY --from=builder /app/backend /app/backend
+COPY --from=builder /app/backend/public /app/backend/public
+COPY --from=builder /app/backend/dist /app/backend/dist
+COPY --from=builder /app/backend/prisma /app/backend/prisma
+COPY --from=builder /app/backend/node_modules /app/backend/node_modules
+
+EXPOSE 5000
+
+WORKDIR /app/backend
+ENV NODE_ENV=production
+
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# CMD ["node", "/app/backend/dist/index.js"]

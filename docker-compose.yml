@@ -1,0 +1,32 @@
+services:
+  ssh-listener:
+    build:
+      context: ssh-listener
+      dockerfile: Dockerfile.ssh
+    container_name: ssh-listener
+    ports:
+      - "2244:22"
+      - "10000-10010"
+    volumes:
+      - ssh-keys:/tmp/keys:ro
+
+  server:
+    build:
+      context: server
+      dockerfile: Dockerfile.server
+    container_name: server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ssh-keys:/mnt/keys:rw
+    
+  guacamole:
+    container_name: guacamole
+    image: jwetzell/guacamole
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./guacamole/config:/config
+  
+volumes:
+  ssh-keys:

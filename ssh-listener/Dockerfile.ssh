@@ -1,0 +1,49 @@
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        openssh-server fail2ban ca-certificates inotify-tools openssh-client && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /var/run/sshd /etc/ssh/keys /var/log/fail2ban && \
+    chmod 700 /etc/ssh/keys
+
+RUN useradd -m -d /home/tunneluser -s /usr/sbin/nologin tunneluser
+
+
+RUN echo "Port 22\n\
+PermitRootLogin no\n\
+PasswordAuthentication no\n\
+PermitEmptyPasswords no\n\
+ChallengeResponseAuthentication no\n\
+PubkeyAcceptedAlgorithms ssh-ed25519,ecdsa-sha2-nistp256\n\
+HostKeyAlgorithms ssh-ed25519,ecdsa-sha2-nistp256\n\
+HostKey /etc/ssh/ssh_host_ed25519_key\n\
+HostKey /etc/ssh/ssh_host_ecdsa_key\n\
+UsePAM yes\n\
+AllowTcpForwarding yes\n\
+GatewayPorts yes\n\
+X11Forwarding no\n\
+PermitTunnel yes\n\
+AuthorizedKeysFile .ssh/authorized_keys\n\
+LogLevel VERBOSE\n\
+SyslogFacility AUTH\n\
+Subsystem sftp /usr/lib/openssh/sftp-server" > /etc/ssh/sshd_config
+
+RUN echo "[sshd]\n\
+enabled = true\n\
+port = ssh\n\
+logpath = /var/log/auth.log\n\
+bantime = 3600\n\
+findtime = 600\n\
+maxretry = 5" > /etc/fail2ban/jail.local
+
+COPY entrypoint.sh /entrypoint.sh
+COPY watch_keys.sh /watch_keys.sh
+RUN chmod +x /entrypoint.sh /watch_keys.sh
+
+EXPOSE 22
+
+ENTRYPOINT ["/entrypoint.sh"]
