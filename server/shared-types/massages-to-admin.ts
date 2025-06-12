@@ -23,9 +23,14 @@ export interface DeviceUpdateMessage extends BaseMessage {
 	type: "device:update";
 }
 
+export interface DeviceUnregisterMessage extends BaseMessage {
+	type: "device:unregister";
+}
+
 export type WebsocketMessage =
 	| DeviceAddMessage
 	| DeviceApproveMessage
 	| DeviceConnectMessage
 	| DeviceUpdateMessage
-	| DeviceDisconnectMessage;
+	| DeviceDisconnectMessage
+	| DeviceUnregisterMessage;

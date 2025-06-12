@@ -1,9 +1,9 @@
-import { validateDeviceToken } from "@/token";
-import { parseDeviceStatusMessage, stringifyWebsocketMessage } from "@/type-utils/typia";
-import { deviceSocketStore } from "@/websocket/DeviceSocketRegistry";
-import { deviceStatusStore } from "@/websocket/DeviceStatusStore";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../prisma-client";
+import { validateDeviceToken } from "../token";
+import { parseDeviceStatusMessage, stringifyWebsocketMessage } from "../type-utils/typia";
+import { deviceSocketStore } from "../websocket/DeviceSocketRegistry";
+import { deviceStatusStore } from "../websocket/DeviceStatusStore";
 
 export async function registerDeviceWS(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>(
@@ -13,7 +13,6 @@ export async function registerDeviceWS(fastify: FastifyInstance) {
       const deviceId = req.params.id;
       const url = new URL(req.url ?? "", `http://${req.headers.host}`);
       const token = url.searchParams.get("token");
-      const sshRunning = url.searchParams.get("sshRunning");
 
       if (!token) {
         connection.send(
@@ -58,21 +57,20 @@ export async function registerDeviceWS(fastify: FastifyInstance) {
         return connection.close();
       }
 
-      if (device.sshOn.toString() !== sshRunning?.toString()) {
-        console.log(`SSH status changed for device, should be ${device.sshOn}, is ${sshRunning}`);
-
-        connection.send(
-          stringifyWebsocketMessage({
-            to: "device",
-            deviceId,
-            type: "device:ssh",
-            ssh: device.sshOn,
-            port: device.port,
-            user: process.env.SSH_USER ?? "tunneluser",
-            host: process.env.SSH_HOST_FOR_DEVICE ?? "localhost",
-          }),
-        );
-      }
+      connection.send(
+        stringifyWebsocketMessage({
+          to: "device",
+          deviceId,
+          type: "device:ssh",
+          ssh: device.sshOn,
+          vnc: device.vncOn,
+          sshPort: device.sshPort,
+          vncPort: device.vncPort,
+          sshLocalPort: device.sshLocalPort,
+          user: process.env.SSH_USER ?? "tunneluser",
+          host: process.env.SSH_HOST_FOR_DEVICE ?? "localhost",
+        }),
+      );
 
       deviceSocketStore.register(`active:${deviceId}`, connection);
       console.log("Connected with token:", token);
@@ -104,33 +102,17 @@ export async function registerDeviceWS(fastify: FastifyInstance) {
 
         if (result.success) {
           if (result.data.type === "device:status") {
+            console.log("Received device status:", result.data);
             deviceStatusStore.update(deviceId, {
               ...result.data,
               lastSeen: new Date(),
             });
 
-			deviceSocketStore.sendToAdmin({
-			  to: "admin",
-			  type: "device:update",
-			  deviceId,
-			});
-
-            if (device.sshOn.toString() !== result.data.sshRunning?.toString()) {
-              console.log(
-                `SSH status changed for device, should be ${device.sshOn}, is ${result.data.sshRunning}`,
-              );
-              connection.send(
-                stringifyWebsocketMessage({
-                  to: "device",
-                  deviceId,
-                  type: "device:ssh",
-                  ssh: device.sshOn,
-                  port: device.port,
-                  user: process.env.SSH_USER ?? "tunneluser",
-                  host: process.env.SSH_HOST_FOR_DEVICE ?? "localhost",
-                }),
-              );
-            }
+            deviceSocketStore.sendToAdmin({
+              to: "admin",
+              type: "device:update",
+              deviceId,
+            });
           }
 
           return;

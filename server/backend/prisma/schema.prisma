@@ -14,20 +14,32 @@ datasource db {
 }
 
 model Device {
-  id               String   @id
-  publicKey        String
-  machineId        String
-  ip               String
-  macAddrs         String // store comma-separated list or JSON string
-  approved         Boolean  @default(false)
-  pin              String?
-  sshOn            Boolean  @default(false)
-  lastSeen         DateTime @default(now())
-  port             Int      @default(10000)
-  guacConnectionId String?
-  token            String?
-  tokenExpiration  DateTime?
-  registeredAt     DateTime @default(now())
+  id        String  @id
+  publicKey String
+  machineId String
+  ip        String
+  macAddrs  String // store comma-separated list or JSON string
+  approved  Boolean @default(false)
+  pin       String?
+  name      String?
+
+  sshOn                   Boolean @default(false)
+  sshPort                 Int     @default(10000)
+  sshLocalPort            Int     @default(22)
+  guacSshConnectionId     String?
+  sshPrivateKey           String?
+  sshPrivateKeyPassphrase String?
+
+  vncOn               Boolean @default(false)
+  vncPort             Int     @default(11000)
+  vncEnabled          Boolean @default(false)
+  vncServerPassword   String  @default("")
+  vncServerParams     String? // store JSON string for VNC params
+  vncClientParams     String? // store JSON string for VNC params
+  guacVncConnectionId String?
+
+  lastSeen     DateTime @default(now())
+  registeredAt DateTime @default(now())
 }
 
 model User {

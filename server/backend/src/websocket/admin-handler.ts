@@ -1,5 +1,5 @@
-import { deviceSocketStore } from "@/websocket/DeviceSocketRegistry";
 import type { FastifyInstance } from "fastify";
+import { deviceSocketStore } from "../websocket/DeviceSocketRegistry";
 
 export async function registerAdminWS(fastify: FastifyInstance) {
   fastify.get("/ws/admin", { websocket: true }, connection => {

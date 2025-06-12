@@ -1,5 +1,8 @@
+import type { TunnelInfo } from "@shared/utils";
+
 export interface DeviceStatus extends Record<string, unknown> {
-  sshRunning?: boolean;
+  runningTunnels: TunnelInfo[];
+  vncServerRunning: boolean;
   lastSeen: Date;
 }
 
@@ -8,7 +11,13 @@ class DeviceStatusStore {
 
   update(deviceId: string, status: Partial<DeviceStatus>) {
     const existing = this.map.get(deviceId) ?? { lastSeen: new Date() };
-    this.map.set(deviceId, { ...existing, ...status, lastSeen: new Date() });
+    this.map.set(deviceId, {
+      runningTunnels: [],
+      vncServerRunning: false,
+      ...existing,
+      ...status,
+      lastSeen: new Date(),
+    });
   }
 
   get(deviceId: string): DeviceStatus | undefined {

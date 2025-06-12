@@ -6,7 +6,8 @@ services:
     container_name: ssh-listener
     ports:
       - "2244:22"
-      - "10000-10010"
+      - "10000-10010:10000-10010"
+      - "11000-11010:11000-11010"
     volumes:
       - ssh-keys:/tmp/keys:ro
 

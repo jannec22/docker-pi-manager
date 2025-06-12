@@ -1,36 +1,28 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "outDir": "dist",
-    "plugins": [
-      {
-        "transform": "typia/lib/transform"
-      }
-    ],
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "paths": {
-      "@shared/*": [
-        "../server/shared-types/*"
-      ],
-      "@server/*": [
-        "../server/backend/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
-    },
-  },
-  "include": [
-    "src/*"
-  ]
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"moduleDetection": "force",
+		"noEmit": true,
+		"strict": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"outDir": "dist",
+		"plugins": [
+			{
+				"transform": "typia/lib/transform"
+			}
+		],
+		"skipLibCheck": true,
+		"strictNullChecks": true,
+		"paths": {
+			"@shared/*": ["../server/shared-types/*"],
+			"@server/*": ["../server/backend/*"],
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["src/*"]
 }

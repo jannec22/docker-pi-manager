@@ -1,28 +1,23 @@
-import { trpc } from "@/utils/trpc";
 import Guacamole from "guacamole-client";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { AuthContext } from "../context/auth.ctx";
+import { type Connection, ConnectionContext } from "../context/connection.ctx";
 
 interface Props {
-  connection: {
-    deviceId: string;
-    token: string;
-    tokenExpiration: string;
-    connectionId: string;
-  };
+  connection: Connection;
 }
 
+const SUPER_L = 65511;
+const CTRL_L = 65507;
+const SHIFT_L = 65505;
+
 export default function ConnectionListItem({ connection }: Props) {
-  const utils = trpc.useUtils();
   const tunnelDomRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<Guacamole.Client | null>(null);
+  const { removeConnection } = useContext(ConnectionContext) || {};
+  const { guacAuth } = useContext(AuthContext) || {};
 
   const [error, setError] = useState<string | null>(null);
-
-  const tunnelMutation = trpc.admin.device.toggleTunnel.useMutation({
-    onSuccess: () => {
-      utils.admin.device.listTunnels.invalidate();
-    },
-  });
 
   useEffect(() => {
     if (clientRef.current) {
@@ -30,10 +25,12 @@ export default function ConnectionListItem({ connection }: Props) {
       clientRef.current.disconnect();
     }
 
-    if (!connection.token || !connection.connectionId) {
+    if (!guacAuth?.authToken) {
+      console.error("No Guacamole auth token available");
       return;
     }
 
+    console.log("Connecting to Guacamole server with auth token:", guacAuth.authToken);
     const tunnel = new Guacamole.ChainedTunnel(
       new Guacamole.WebSocketTunnel("ws://localhost:8081/websocket-tunnel"),
     );
@@ -50,7 +47,7 @@ export default function ConnectionListItem({ connection }: Props) {
       //     | 5; // DISCONNECTED
       if (state === 5) {
         console.log("Disconnected from Guacamole server");
-        setError("Disconnected from Guacamole server");
+        removeConnection?.(connection.connectionId);
       }
       if (state === 1) {
         // Handle connecting logic here if needed
@@ -80,10 +77,10 @@ export default function ConnectionListItem({ connection }: Props) {
 
     // Connect
     const params = new URLSearchParams({
-      token: connection.token,
+      token: guacAuth.authToken,
       GUAC_ID: connection.connectionId,
       GUAC_TYPE: "c",
-      GUAC_DATA_SOURCE: "postgresql",
+      GUAC_DATA_SOURCE: guacAuth.dataSource,
       GUAC_WIDTH: tunnelDomRef.current?.clientWidth.toString() || "1409",
       GUAC_HEIGHT: tunnelDomRef.current?.clientHeight.toString() || "1457",
       GUAC_DPI: "128",
@@ -106,12 +103,53 @@ export default function ConnectionListItem({ connection }: Props) {
     // Keyboard
     const keyboard = new Guacamole.Keyboard(tunnelDomRef.current || document);
 
+    let isCtrlPressed = false;
+    let isShiftPressed = false;
+
     keyboard.onkeydown = (keysym: number) => {
-      clientRef.current?.sendKeyEvent(1, keysym);
+      const wasSuperPressed = isCtrlPressed && isShiftPressed;
+
+      if (keysym === SUPER_L || keysym === CTRL_L) {
+        isCtrlPressed = true;
+      }
+      if (keysym === SHIFT_L) {
+        isShiftPressed = true;
+      }
+
+      if (
+        (keysym === SHIFT_L || keysym === CTRL_L || keysym === SUPER_L) &&
+        !wasSuperPressed &&
+        isCtrlPressed &&
+        isShiftPressed
+      ) {
+        console.log("Sending super key press");
+        clientRef.current?.sendKeyEvent(1, SUPER_L); // ctrl shift is super
+      } else {
+        console.log("Sending key press:", keysym);
+        clientRef.current?.sendKeyEvent(1, keysym);
+      }
     };
 
     keyboard.onkeyup = (keysym: number) => {
-      clientRef.current?.sendKeyEvent(0, keysym);
+      const wasSuperPressed = isCtrlPressed && isShiftPressed;
+
+      if (keysym === SUPER_L || keysym === CTRL_L) {
+        isCtrlPressed = false;
+      }
+      if (keysym === SHIFT_L) {
+        isShiftPressed = false;
+      }
+
+      if (
+        wasSuperPressed &&
+        (keysym === SUPER_L || keysym === CTRL_L || keysym === SHIFT_L)
+      ) {
+        console.log("Sending super key release");
+        clientRef.current?.sendKeyEvent(0, SUPER_L); // ctrl shift is super
+      } else {
+        console.log("Sending key release:", keysym);
+        clientRef.current?.sendKeyEvent(0, keysym);
+      }
     };
 
     return () => {
@@ -124,12 +162,22 @@ export default function ConnectionListItem({ connection }: Props) {
       clientRef.current?.disconnect();
       clientRef.current = null;
     };
-  }, [connection.token, connection.connectionId]);
+  }, [guacAuth?.authToken, guacAuth?.dataSource, connection.connectionId, removeConnection]);
 
   return (
     <>
-      <div ref={tunnelDomRef} className="mt-2 w-full h-64 border rounded-md overflow-hidden">
-        {/*  */}
+      <button
+        type="button"
+        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        onClick={() => removeConnection?.(connection.connectionId)}
+      >
+        Stop Tunnel
+      </button>
+      <div
+        ref={tunnelDomRef}
+        className="mt-2 w-full flex h-[50%] border rounded-md overflow-hidden"
+      >
+        <p className="text-center m-auto text-gray-500">Loading Guacamole connection...</p>
       </div>
 
       {error && (
@@ -137,14 +185,6 @@ export default function ConnectionListItem({ connection }: Props) {
           <strong>Error:</strong> {error}
         </div>
       )}
-
-      <button
-        type="button"
-        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        onClick={() => tunnelMutation.mutate(connection.deviceId)}
-      >
-        X
-      </button>
     </>
   );
 }

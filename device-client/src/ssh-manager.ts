@@ -1,102 +1,132 @@
-import { exec, spawn } from "child_process";
-import { promises as fs } from "fs";
-import * as os from "os";
-import * as path from "path";
-import { promisify } from "util";
+import { exec, spawn } from "node:child_process";
+import * as os from "node:os";
+import { promisify } from "node:util";
+import type { TunnelInfo } from "@shared/utils";
 
 const execAsync = promisify(exec);
-const pidFile = path.join(os.tmpdir(), "managed_autossh.pid");
 
-const savePid = async (pid: number): Promise<void> => {
-	await fs.writeFile(pidFile, pid.toString(), "utf8");
+// const isPidSsh = async (pid: number): Promise<boolean> => {
+//   try {
+//     const { stdout } = await execAsync(`ps -p ${pid} -o comm=`);
+//     const name = stdout.trim();
+//     return name === "ssh" || name === "autossh";
+//   } catch {
+//     return false;
+//   }
+// };
+
+export const killSsh = async (pid: number): Promise<void> => {
+  // if (await isPidSsh(pid)) {
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {}
+  // }
 };
 
-const getPid = async (): Promise<number | null> => {
-	try {
-		const content = await fs.readFile(pidFile, "utf8");
-		const pid = parseInt(content.trim(), 10);
-		return Number.isNaN(pid) ? null : pid;
-	} catch {
-		return null;
-	}
+export const getActiveSshTunnels = async (): Promise<TunnelInfo[]> => {
+  /**
+	 * pgrep -af autossh | while read -r pid cmd; do
+  echo "PID: $pid"
+  echo "  Command: $cmd"
+  echo "$cmd" | grep -oE '\-R [0-9]+:[^ ]+' | while read -r tunnel; do
+    port=$(echo $tunnel | cut -d' ' -f2 | cut -d: -f1)
+    dest=$(echo $tunnel | cut -d' ' -f2 | cut -d: -f2-)
+    echo "  Reverse Tunnel: remote_port=$port → $dest"
+  done
+done
+	 */
+
+  const { stdout } = await execAsync("pgrep -af autossh");
+  const lines = stdout.trim().split("\n");
+  const tunnels: TunnelInfo[] = [];
+  for (const line of lines) {
+    const parts = line.split(" ");
+    const pid = parts[0];
+    const cmd = parts.slice(1).join(" ");
+
+    const userHostMatch = cmd.match(/(\w+)@([^ ]+)/);
+    if (!userHostMatch) continue; // skip if no user@host found
+    const user = userHostMatch[1];
+    const host = userHostMatch[2];
+
+    // remote:localhost:local
+    const regex = /-R\s+(?<remote>\d+):localhost:(?<local>\d+)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(cmd)) !== null) {
+      const remote = Number.parseInt(match.groups?.remote || "0", 10);
+      const local = Number.parseInt(match.groups?.local || "0", 10);
+      if (remote > 0 && local > 0) {
+        tunnels.push({
+          remote,
+          local,
+          user,
+          host,
+          pid: Number.parseInt(pid, 10),
+        });
+      }
+    }
+  }
+
+  return tunnels;
 };
 
-const isPidSsh = async (pid: number): Promise<boolean> => {
-	try {
-		const { stdout } = await execAsync(`ps -p ${pid} -o comm=`);
-		const name = stdout.trim();
-		return name === "ssh" || name === "autossh";
-	} catch {
-		return false;
-	}
-};
+export const startSsh = async (tunnels: TunnelInfo[]): Promise<void> => {
+  if (tunnels.length === 0) {
+    throw new Error("No SSH tunnels provided to start.");
+  }
 
-const killSsh = async (pid: number): Promise<void> => {
-	if (await isPidSsh(pid)) {
-		try {
-			process.kill(pid, "SIGTERM");
-			await fs.unlink(pidFile).catch(() => {});
-		} catch {}
-	}
-};
+  const user = tunnels[0].user;
+  const host = tunnels[0].host;
 
-const startSsh = async (
-	port: number,
-	user: string,
-	host: string,
-): Promise<number> => {
-	console.log(`Starting autossh -f -i ~/.ssh/id_ed25519 -p 2244 -N -R ${port}:localhost:22 ${user}@${host}`);
-	const sshProcess = spawn(
-		"autossh",
-		[
-			"-f",
-			"-i",
-			`${os.homedir()}/.ssh/id_ed25519`,
-			"-p",
-			"2244",
-			"-o",
-			"StrictHostKeyChecking=accept-new",
-			"-N",
-			"-R",
-			`${port}:localhost:22`,
-			`${user}@${host}`,
-		],
-		{ stdio: "ignore", detached: true },
-	);
+  const params = [
+    "-f",
+    "-i",
+    `${os.homedir()}/.ssh/id_ed25519`,
+    "-p",
+    "2244",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-N",
+  ];
 
-	sshProcess.unref(); // allow it to run independently
-	await new Promise((resolve) => setTimeout(resolve, 500)); // give it a moment to fork
+  for (const tunnel of tunnels) {
+    params.push("-R", `${tunnel.remote}:localhost:${tunnel.local}`);
+  }
 
-	// find the real autossh PID (the forked one)
-	const { stdout } = await execAsync(
-		`pgrep -f "autossh.*${port}:localhost:22"`,
-	);
-	const lines = stdout.trim().split("\n").map(Number);
-	const pid = lines[0]; // get the first match
+  params.push(`${user}@${host}`);
 
-	if (!pid || Number.isNaN(pid)) throw new Error("Failed to get autossh PID");
+  const sshProcess = spawn("autossh", params, {
+    stdio: "ignore",
+    detached: true,
+  });
 
-	await savePid(pid);
-	return pid;
-};
+  sshProcess.unref(); // allow it to run independently
+  await new Promise(resolve => setTimeout(resolve, 500)); // give it a moment to fork
 
-export const isSshRunning = async (): Promise<number | null> => {
-	const pid = await getPid();
-	if (!pid || !(await isPidSsh(pid))) return null;
-	return pid;
-};
+  let i = 0;
 
-export const ensureSshRunning = async (
-	port: number,
-	user: string,
-	host: string,
-): Promise<number> => {
-	const runningPid = await isSshRunning();
-	if (runningPid) return runningPid;
-	return await startSsh(port, user, host);
-};
+  while (++i <= 5) {
+    const activeTunnels = await getActiveSshTunnels();
 
-export const ensureSshStopped = async (): Promise<void> => {
-	const pid = await getPid();
-	if (pid) await killSsh(pid);
+    // check if all tunnels are running
+    if (
+      tunnels.every(tunnel =>
+        activeTunnels.some(
+          activeTunnel =>
+            activeTunnel.remote === tunnel.remote &&
+            activeTunnel.local === tunnel.local &&
+            activeTunnel.user === tunnel.user &&
+            activeTunnel.host === tunnel.host,
+        ),
+      )
+    ) {
+      return;
+    }
+
+    console.log(`Waiting for SSH tunnels to start... Attempt ${i}/5`);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // wait for 1 second
+  }
+
+  throw new Error("Failed to start some SSH tunnels after 5 seconds.");
 };

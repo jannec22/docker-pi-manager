@@ -12,7 +12,18 @@ interface Connection {
   activeConnections?: number;
 }
 
-export async function getToken(): Promise<{ authToken: string; dataSource: string }> {
+let lastToken: { authToken: string; dataSource: string; expiration: Date } | null = null;
+
+export async function getGuacAuth(): Promise<{
+  authToken: string;
+  dataSource: string;
+  expiration: Date;
+}> {
+  if (lastToken && lastToken.expiration > new Date()) {
+    console.log("Using cached Guacamole token");
+    return lastToken;
+  }
+
   console.log(`Fetching Guacamole token from ${GUAC_URL}/api/tokens`);
   const res = await fetch(`${GUAC_URL}/api/tokens`, {
     method: "POST",
@@ -29,7 +40,17 @@ export async function getToken(): Promise<{ authToken: string; dataSource: strin
 
   const data = await res.json();
 
-  const auth = { authToken: data.authToken, dataSource: data.dataSource };
+  const guacTokenExpiration = process.env.TOKEN_EXPIRATION
+    ? new Date(Date.now() + Number.parseInt(process.env.TOKEN_EXPIRATION))
+    : new Date(Date.now() + 15 * 60 * 1000);
+
+  const auth = {
+    authToken: data.authToken,
+    dataSource: data.dataSource,
+    expiration: guacTokenExpiration,
+  };
+
+  lastToken = auth;
 
   return auth;
 }
@@ -37,19 +58,22 @@ export async function getToken(): Promise<{ authToken: string; dataSource: strin
 export async function createGuacConnection(
   deviceId: string,
   port: number,
+  protocol: "ssh" | "vnc" = "ssh",
   hostname = process.env.SSH_LISTENER_HOST || "localhost",
+  password?: string,
 ): Promise<{ identifier: string }> {
-  const { authToken, dataSource } = await getToken();
+  const { authToken, dataSource } = await getGuacAuth();
 
   console.log(`Creating Guacamole connection for device ${deviceId} on port ${port}`);
 
   const connection = {
     parentIdentifier: "ROOT",
-    name: `SSH ${deviceId}`,
-    protocol: "ssh",
+    name: `${protocol} ${deviceId}`,
+    protocol: protocol,
     parameters: {
       port: port.toString(),
       hostname,
+      password: password || "",
       "read-only": "",
       "swap-red-blue": "",
       cursor: "",
@@ -132,7 +156,7 @@ export async function createGuacConnection(
 }
 
 export async function deleteGuacConnection(connectionId: string): Promise<void> {
-  const { authToken, dataSource } = await getToken();
+  const { authToken, dataSource } = await getGuacAuth();
 
   const res = await fetch(
     `${GUAC_URL}/api/session/data/${dataSource}/connections/${connectionId}`,

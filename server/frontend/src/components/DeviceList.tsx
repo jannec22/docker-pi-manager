@@ -1,6 +1,6 @@
-import DeviceListItem from "@/components/DeviceListItem";
-import { trpc } from "@/utils/trpc";
 import { useState } from "react";
+import DeviceListItem from "../components/DeviceListItem";
+import { trpc } from "../utils/trpc";
 
 export default function DeviceList() {
   const [page, setPage] = useState(0);

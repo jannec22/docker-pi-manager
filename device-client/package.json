@@ -15,12 +15,14 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@ryoppippi/unplugin-typia": "^2.6.4",
     "@types/ws": "^8.18.1",
     "ts-patch": "^3.3.0",
     "typescript": "~5.8.3",
     "typia": "^9.3.1",
     "vite": "^6.3.5",
+    "vite-plugin-checker": "^0.9.3",
     "vite-tsconfig-paths": "^5.1.4"
   }
 }

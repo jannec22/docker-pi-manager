@@ -1,10 +1,10 @@
-import App from "@/App";
-import AuthProvider from "@/components/AuthProvider";
-import { trpc } from "@/utils/trpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import ReactDOM from "react-dom/client";
-import "@/index.css";
+import App from "./App";
+import AuthProvider from "./components/AuthProvider";
+import { trpc } from "./utils/trpc";
+import "./index.css";
 
 const queryClient = new QueryClient();
 const trpcClient = trpc.createClient({

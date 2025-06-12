@@ -1,6 +1,6 @@
-import { AuthContext } from "@/context/auth.ctx";
-import { trpc } from "@/utils/trpc";
 import { useContext, useState } from "react";
+import { AuthContext } from "../context/auth.ctx";
+import { trpc } from "../utils/trpc";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -12,7 +12,7 @@ export default function Login() {
       const token = data.token;
 
       if (login) {
-        login(token);
+        login(token, data.guacAuth);
       }
     },
     onError: error => {
@@ -22,9 +22,10 @@ export default function Login() {
   });
 
   return (
-    <div>
+    <div className="grow flex p-4 flex-col">
       <h2>Login</h2>
       <form
+        className="flex flex-col gap-4 max-w-[400px] m-auto"
         onSubmit={e => {
           e.preventDefault();
 

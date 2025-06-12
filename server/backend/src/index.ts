@@ -1,13 +1,13 @@
 import path from "node:path";
-import { createContext } from "@/trpc/context";
-import { appRouter } from "@/trpc/router";
-import { registerAdminWS } from "@/websocket/admin-handler";
-import { registerDeviceWS } from "@/websocket/device-handler";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
+import { createContext } from "./trpc/context";
+import { appRouter } from "./trpc/router";
+import { registerAdminWS } from "./websocket/admin-handler";
+import { registerDeviceWS } from "./websocket/device-handler";
 
 const fastify = Fastify();
 

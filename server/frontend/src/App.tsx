@@ -1,27 +1,38 @@
-import DeviceList from "@/components/DeviceList";
-import Login from "@/components/Login";
-import { AuthContext } from "@/context/auth.ctx";
 import { useContext } from "react";
+import Tabs from "./Tabs";
 import WithAdminWebsocket from "./WithAdminWebsocket";
-import ConnectionList from "./components/ConnectionList";
+import ConnectionListProvider from "./components/ConnectionListProvider";
+import Login from "./components/Login";
+import { AuthContext } from "./context/auth.ctx";
 
 function App() {
   const isAuthenticated = useContext(AuthContext)?.isAuthenticated;
+  const { logout } = useContext(AuthContext) || {};
 
   return (
-    <div className="p-4 flex flex-col">
+    <>
       {isAuthenticated ? (
-        <WithAdminWebsocket>
-          <strong className="text-2xl">Iot ssh Manager</strong>
-          <div className="h-[40%] min-h-[40%] overflow-y-auto">
-            <DeviceList />
-          </div>
-          <ConnectionList />
-        </WithAdminWebsocket>
+        <ConnectionListProvider>
+          <WithAdminWebsocket>
+            <div className="flex items-center justify-between mb-4">
+              <strong className="text-2xl">Iot ssh Manager</strong>
+
+              <button
+                type="button"
+                className="ml-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                onClick={() => logout?.()}
+              >
+                Logout
+              </button>
+            </div>
+
+            <Tabs />
+          </WithAdminWebsocket>
+        </ConnectionListProvider>
       ) : (
         <Login />
       )}
-    </div>
+    </>
   );
 }
 
