@@ -4,9 +4,9 @@
   "type": "module",
   "main": "dist/client.js",
   "scripts": {
-    "start": "npm run build && node dist/client.js",
+    "start": "bun run build && node dist/client.js",
     "build": "vite build",
-    "test": "npx tsx src/test.ts",
+    "test": "bunx tsx src/test.ts",
     "prepare": "ts-patch install"
   },
   "dependencies": {

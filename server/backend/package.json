@@ -32,6 +32,6 @@
     "prepare": "ts-patch install"
   },
   "prisma": {
-    "seed": "npx tsx src/seed.ts"
+    "seed": "bunx tsx src/seed.ts"
   }
 }
