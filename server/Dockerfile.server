@@ -38,6 +38,13 @@ WORKDIR /app
 # Copy only the necessary built artifacts
 COPY --from=builder /app/backend /app/backend
 
+# ---- Node Source ----
+FROM node:20-slim AS node
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node /usr/local/bin/npx /usr/local/bin/npx
+
 # Expose server port
 EXPOSE 5000
 

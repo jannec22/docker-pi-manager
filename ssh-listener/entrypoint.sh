@@ -14,6 +14,6 @@ chmod 600 /home/tunneluser/.ssh/authorized_keys
 
 /watch_keys.sh &
 
-# fail2ban-client -x start
+fail2ban-client -x start
 
 exec /usr/sbin/sshd -D -E /var/log/auth.log
