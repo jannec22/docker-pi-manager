@@ -4,6 +4,20 @@ import { useState } from "react";
 import z from "zod";
 import { trpc } from "../utils/trpc";
 import DeviceApproveAdvancedForm from "./DeviceApproveAdvancedForm";
+import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 interface Props {
   deviceId: string;
@@ -42,74 +56,92 @@ const DeviceApproveForm = ({ deviceId, pin }: Props) => {
   });
 
   return (
-    <form onSubmit={approveFormik.handleSubmit} className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Approve Device</h2>
-      <strong>PIN: {pin}</strong>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full text-xs">
+          Approve Device
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <form onSubmit={approveFormik.handleSubmit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Approve Device</DialogTitle>
+            <DialogDescription>
+              Approve the device with ID <strong>{deviceId}</strong> and PIN <strong>{pin}</strong>.
+              You can also configure SSH and VNC settings.
+            </DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="device-name">Device Name:</Label>
 
-      <label>
-        Device Name:
-        <input
-          type="text"
-          name="name"
-          required
-          value={approveFormik.values.name}
-          onChange={approveFormik.handleChange}
-          className="border rounded p-2 w-full"
-        />
-      </label>
+          <Input
+            type="text"
+            name="name"
+            id="device-name"
+            placeholder="Enter device name"
+            required
+            value={approveFormik.values.name}
+            onChange={approveFormik.handleChange}
+            className="border rounded p-2 w-full"
+          />
 
-      {approveFormik.errors.name && (
-        <div className="text-red-500 text-sm">{approveFormik.errors.name}</div>
-      )}
-
-      <label className="flex items-center gap-2">
-        <input type="checkbox" 
-          name="vncEnabled"
-          checked={approveFormik.values.vncEnabled || false}
-          onChange={approveFormik.handleChange}
-          className="h-4 w-4"
-        />
-        Enable VNC Server
-      </label>
-
-      {approveFormik.values.vncEnabled && (
-        <>
-          <label>
-            Vnc server password
-            <input
-              type="password"
-              name="vncServerPassword"
-              required
-              value={approveFormik.values.vncServerPassword}
-              onChange={approveFormik.handleChange}
-              className="border rounded p-2 w-full"
-            />
-          </label>
-
-          {approveFormik.errors.vncServerPassword && (
-            <div className="text-red-500 text-sm">{approveFormik.errors.vncServerPassword}</div>
+          {approveFormik.errors.name && (
+            <div className="text-red-500 text-sm">{approveFormik.errors.name}</div>
           )}
-        </>
-      )}
 
-      <button
-        type="button"
-        onClick={() => setAdvanced(!advanced)}
-        className="text-white hover:underline"
-      >
-        {advanced ? "Hide Advanced Options" : "Show Advanced Options"}
-      </button>
+          <Label className="flex items-center gap-2">
+            <Checkbox
+              name="vncEnabled"
+              checked={approveFormik.values.vncEnabled || false}
+              onCheckedChange={checked => {
+                approveFormik.setFieldValue("vncEnabled", !!checked);
+              }}
+              className="h-4 w-4"
+            />
+            Enable VNC Server
+          </Label>
 
-      {advanced && <DeviceApproveAdvancedForm formik={approveFormik} />}
+          {approveFormik.values.vncEnabled && (
+            <>
+              <Label>
+                Vnc server password
+                <Input
+                  type="password"
+                  name="vncServerPassword"
+                  required
+                  value={approveFormik.values.vncServerPassword}
+                  onChange={approveFormik.handleChange}
+                  className="border rounded p-2 w-full"
+                />
+              </Label>
 
-      <button
-        type="submit"
-        disabled={approveMutation.isPending}
-        className="text-white rounded p-2 hover:bg-blue-700 disabled:bg-gray-400"
-      >
-        {approveMutation.isPending ? "Approving..." : "Approve Device"}
-      </button>
-    </form>
+              {approveFormik.errors.vncServerPassword && (
+                <div className="text-red-500 text-sm">{approveFormik.errors.vncServerPassword}</div>
+              )}
+            </>
+          )}
+
+          <Button variant="secondary" onClick={() => setAdvanced(!advanced)}>
+            {advanced ? "Hide Advanced Options" : "Show Advanced Options"}
+          </Button>
+
+          {advanced && <DeviceApproveAdvancedForm formik={approveFormik} />}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+
+            <Button
+              type="submit"
+              disabled={approveMutation.isPending}
+              loading={approveMutation.isPending}
+            >
+              Approve Device
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

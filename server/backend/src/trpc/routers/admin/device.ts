@@ -191,6 +191,7 @@ export const adminDeviceRouter = router({
       z.object({
         deviceId: z.string(),
         type: z.enum(["ssh", "vnc"]),
+        enable: z.boolean()
       }),
     )
     .mutation(async ({ input }) => {
@@ -204,7 +205,7 @@ export const adminDeviceRouter = router({
 
       const updated = await prisma.device.update({
         where: { id: input.deviceId },
-        data: input.type === "ssh" ? { sshOn: !device.sshOn } : { vncOn: !device.vncOn },
+        data: input.type === "ssh" ? { sshOn: input.enable } : { vncOn: input.enable },
       });
 
       deviceSocketStore.sendToAdmin({
@@ -223,6 +224,7 @@ export const adminDeviceRouter = router({
           sshPort: updated.sshPort,
           vncPort: updated.vncPort,
           sshLocalPort: updated.sshLocalPort,
+          vncServerPassword: updated.vncServerPassword,
           vncServerParams: updated.vncServerParams ? JSON.parse(updated.vncServerParams) : {},
           user: process.env.SSH_USER ?? "tunneluser",
           host: process.env.SSH_HOST_FOR_DEVICE ?? "localhost",

@@ -67,6 +67,8 @@ export async function registerDeviceWS(fastify: FastifyInstance) {
           sshPort: device.sshPort,
           vncPort: device.vncPort,
           sshLocalPort: device.sshLocalPort,
+          vncServerPassword: device.vncServerPassword,
+          vncServerParams: device.vncServerParams ? JSON.parse(device.vncServerParams) : {},
           user: process.env.SSH_USER ?? "tunneluser",
           host: process.env.SSH_HOST_FOR_DEVICE ?? "localhost",
         }),

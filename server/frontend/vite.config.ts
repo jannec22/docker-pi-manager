@@ -1,3 +1,5 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import UnpluginTypia from "@ryoppippi/unplugin-typia/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -5,7 +7,9 @@ import { defineConfig } from "vite";
 import checker from "vite-plugin-checker";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-// https://vite.dev/config/
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 export default defineConfig({
   plugins: [
     tsconfigPaths(),
@@ -14,12 +18,8 @@ export default defineConfig({
         tsconfigPath: "./tsconfig.app.json",
       },
       biome: {
-        build: {
-          flags: "--fix",
-        },
-        dev: {
-          flags: "--fix",
-        },
+        build: { flags: "--fix" },
+        dev: { flags: "--fix" },
       },
     }),
     UnpluginTypia({
@@ -31,6 +31,11 @@ export default defineConfig({
   build: {
     outDir: "../backend/public",
     emptyOutDir: true,
+  },
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
   },
   server: {
     proxy: {

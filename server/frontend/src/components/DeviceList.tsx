@@ -1,49 +1,30 @@
-import { useState } from "react";
-import DeviceListItem from "../components/DeviceListItem";
-import { trpc } from "../utils/trpc";
+import type { Connection } from "@/context/connection.ctx";
+import type { Dispatch, SetStateAction } from "react";
+import type { Device } from "../utils/trpc";
+import DeviceListItem from "./DeviceListItem";
 
-export default function DeviceList() {
-  const [page, setPage] = useState(0);
-  const pageSize = 10;
+interface Props {
+  devices: Device[];
+  setActiveConnection: Dispatch<SetStateAction<Connection | null>>;
+}
 
-  const { data, isLoading } = trpc.admin.device.list.useQuery({
-    page,
-    pageSize,
-  });
-
-  if (isLoading) return <p>Loading...</p>;
-  if (!data) return <p>No data</p>;
-
-  const { items, totalPages } = data;
+const DeviceList = ({ devices,setActiveConnection }: Props) => {
+  if (devices.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No devices found</p>
+        <p className="text-xs mt-1">Waiting for devices to register</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-4 grow flex flex-col">
-      <strong className="text-xl">Devices:</strong>
-
-      <ul className="grow">
-        {items.map(device => (
-          <DeviceListItem key={device.id} device={device} />
-        ))}
-      </ul>
-      <div style={{ marginTop: "1rem" }}>
-        <button
-          type="button"
-          onClick={() => setPage(p => Math.max(p - 1, 0))}
-          disabled={page === 0}
-        >
-          Previous
-        </button>
-        <span style={{ margin: "0 1rem" }}>
-          Page {page + 1} of {totalPages}
-        </span>
-        <button
-          type="button"
-          onClick={() => setPage(p => Math.min(p + 1, totalPages - 1))}
-          disabled={page >= totalPages - 1}
-        >
-          Next
-        </button>
-      </div>
+    <div className="space-y-3">
+      {devices.map(device => (
+        <DeviceListItem setActiveConnection={setActiveConnection} key={device.id} device={device} />
+      ))}
     </div>
   );
-}
+};
+
+export default DeviceList;

@@ -1,6 +1,10 @@
 import type { ApproveDeviceInput } from "@shared/input/device";
 import type { FormikProps } from "formik";
 import { useState } from "react";
+import { Checkbox } from "./ui/checkbox";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 
 interface Props {
   formik: FormikProps<ApproveDeviceInput>;
@@ -12,24 +16,25 @@ const DeviceApproveAdvancedForm = ({ formik }: Props) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <label htmlFor="use-key-for-ssh" className="text-sm font-medium text-gray-700">
+        <Label htmlFor="use-key-for-ssh" className="text-sm font-medium text-gray-700">
+          <Checkbox
+            id="use-key-for-ssh"
+            checked={useKeyForSsh}
+            onCheckedChange={checked => {
+              setUseKeyForSsh(!!checked);
+            }}
+          />
           Use key for SSH
-        </label>
-        <input
-          type="checkbox"
-          id="use-key-for-ssh"
-          checked={useKeyForSsh}
-          onChange={e => setUseKeyForSsh(e.target.checked)}
-        />
+        </Label>
       </div>
 
       {useKeyForSsh && (
         <>
           <div className="flex flex-col gap-2">
-            <label htmlFor="sshPrivateKey" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="sshPrivateKey" className="text-sm font-medium text-gray-700">
               SSH Private Key
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               name="privateKey"
               id="sshPrivateKey"
               rows={4}
@@ -39,10 +44,10 @@ const DeviceApproveAdvancedForm = ({ formik }: Props) => {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="sshPrivateKeyPassphrase" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="sshPrivateKeyPassphrase" className="text-sm font-medium text-gray-700">
               SSH Private Key Passphrase
-            </label>
-            <input
+            </Label>
+            <Input
               type="password"
               name="privateKeyPassphrase"
               id="sshPrivateKeyPassphrase"

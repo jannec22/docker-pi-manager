@@ -1,6 +1,10 @@
 import { useContext, useState } from "react";
 import { AuthContext } from "../context/auth.ctx";
 import { trpc } from "../utils/trpc";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -22,54 +26,61 @@ export default function Login() {
   });
 
   return (
-    <div className="grow flex p-4 flex-col">
-      <h2>Login</h2>
-      <form
-        className="flex flex-col gap-4 max-w-[400px] m-auto"
-        onSubmit={e => {
-          e.preventDefault();
-
-          if (username.trim() === "" || password.trim() === "") {
-            setError("Username and password cannot be empty.");
-            return;
-          }
-
-          setError(null);
-          loginMutation.mutate({ username, password });
-        }}
-      >
-        <label>
-          Username:
-          <input
-            type="text"
-            name="username"
-            required
-            value={username}
-            onChange={e => {
-              setUsername(e.target.value);
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <Card className="w-full max-w-90">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Device Manager Login</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              if (username.trim() === "" || password.trim() === "") {
+                setError("Username and password cannot be empty.");
+                return;
+              }
+              setError(null);
+              loginMutation.mutate({ username, password });
             }}
-          />
-        </label>
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                disabled={loginMutation.isPending}
+              />
+            </div>
 
-        <label>
-          Password:
-          <input
-            type="password"
-            name="password"
-            required
-            value={password}
-            onChange={e => {
-              setPassword(e.target.value);
-            }}
-          />
-        </label>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={loginMutation.isPending}
+              />
+            </div>
 
-        <button type="submit" disabled={loginMutation.isPending}>
-          {loginMutation.isPending ? "Logging in..." : "Login"}
-        </button>
-      </form>
+            {error && <div className="text-red-500 text-sm">{error}</div>}
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
+            <Button
+              type="submit"
+              className="w-full mt-3"
+              disabled={loginMutation.isPending}
+              loading={loginMutation.isPending}
+            >
+              Login
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

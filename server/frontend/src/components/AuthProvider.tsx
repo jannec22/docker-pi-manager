@@ -49,7 +49,7 @@ function AuthProvider({ children }: Props) {
       console.log(
         `GuacAuth will expire in ${timeout} ms, at ${new Date(expirationTime).toLocaleString()}`,
       );
-      
+
       const timer = setTimeout(
         () => {
           console.log("GuacAuth expired, fetching new one...");

@@ -30,12 +30,16 @@
       }
     ],
     "strictNullChecks": true,
+    "baseUrl": ".",
     "paths": {
       "@shared/*": [
         "../shared-types/*"
       ],
       "@server/*": [
         "../backend/*"
+      ],
+      "@/*": [
+        "./src/*"
       ]
     }
   },

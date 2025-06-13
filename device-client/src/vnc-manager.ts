@@ -27,7 +27,7 @@ const killVnc = async (pid: number): Promise<void> => {
 
 const startVnc = async (cmd: DeviceSshMessage): Promise<number> => {
   const display = cmd.vncServerParams?.display || 1;
-  const password = cmd.vncServerParams?.password || "";
+  const password = cmd.vncServerPassword || "";
 
   console.log(`Starting VNC server on display :${display} with password ${password}`);
 

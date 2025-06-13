@@ -1,14 +1,42 @@
+import usePersistedState from "@/utils/usePersistedState";
+import { CollapsibleContent, CollapsibleTrigger } from "@radix-ui/react-collapsible";
 import clsx from "clsx";
-import { useContext } from "react";
-import { ConnectionContext } from "../context/connection.ctx";
+import {
+  ChevronDown,
+  Clock,
+  Loader2,
+  Monitor,
+  MoreVertical,
+  Network,
+  Shield,
+  ShieldCheck,
+  Terminal,
+  Trash2,
+} from "lucide-react";
+import { type Dispatch, type SetStateAction, useContext } from "react";
+import { type Connection, ConnectionContext } from "../context/connection.ctx";
 import { type Device, trpc } from "../utils/trpc";
 import DeviceApproveForm from "./DeviceApproveForm";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Collapsible } from "./ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Switch } from "./ui/switch";
 
 interface Props {
   device: Device;
+  setActiveConnection: Dispatch<SetStateAction<Connection | null>>;
 }
 
-export default function DeviceListItem({ device }: Props) {
+export default function DeviceListItem({ device, setActiveConnection }: Props) {
+  const [collapsed, setCollapsed] = usePersistedState<boolean>(`${device.id}-collapse`, true);
   const sshMutation = trpc.admin.device.toggleConnection.useMutation();
   const unregisterMutation = trpc.admin.device.unregister.useMutation();
   const { connections, addConnection, removeConnection } = useContext(ConnectionContext) || {};
@@ -21,162 +49,223 @@ export default function DeviceListItem({ device }: Props) {
     conn => conn.connectionId === device.guacSshConnectionId && conn.type === "ssh",
   );
 
+  const formatLastSeen = (isoString: string) => {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return `${Math.floor(diffMins / 1440)}d ago`;
+  };
+
   return (
-    <li className="p-4 border rounded-md shadow-sm mb-2 bg-white flex flex-wrap gap-2 text-sm text-gray-800">
-      <div className="flex flex-col grow">
-        <div className="flex items-center gap-2">
-          <strong className="my-auto text-lg font-semibold text-gray-900">
-            {device.name || "Unnamed Device"}
-          </strong>
-          <span className="my-auto font-mono font-semibold text-gray-900">[{device.id}]</span>
-          {device.pin && !device.approved && (
-            <span className="my-auto text-gray-500">PIN: {device.pin}</span>
-          )}
-          {device.listening && <span className="text-green-600 font-medium">[online]</span>}
+    <Card
+      onClick={() => {
+        if (collapsed) {
+          setCollapsed(false);
+        }
+      }}
+      className={clsx(device.listening ? "border-green-400 bg-secondary" : "border-orange-400")}
+    >
+      <CardHeader className="pb-3 px-3 pt-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-sm font-medium">
+              {device.name || `Device ${device.id}`}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">{device.ip}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {device.approved ? (
+              <ShieldCheck className="h-4 w-4 text-green-500" />
+            ) : (
+              <Shield className="h-4 w-4 text-orange-500" />
+            )}
+            <Badge variant={device.approved ? "default" : "secondary"} className="text-xs">
+              {device.approved ? "Approved" : "Pending"}
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="center">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  className="text-center"
+                  onClick={() => {
+                    unregisterMutation.mutate({ deviceId: device.id });
+                    removeConnection?.(device.id);
+                  }}
+                >
+                  <Trash2 />
+                  Unregister Device
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+      </CardHeader>
 
-        <div className="flex flex-col">
-          <span>
-            Mapped ports:
-          </span>
-          {
-            device.runningTunnels.map(tunnel => (
-              <span
-                key={tunnel.remote + tunnel.local}
-                className={clsx(
-                  "inline-block text-xs font-semibold",
-                  device.sshOn ? "text-blue-800" : "bg-gray-100 text-gray-800",
+      <CardContent className="space-y-3 px-3 pb-3">
+        <Collapsible
+          open={!collapsed}
+          onOpenChange={open => {
+            setCollapsed(!open);
+          }}
+          className="flex flex-col"
+        >
+          <div className="flex items-center content-between gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Last seen: {formatLastSeen(device.lastSeen)}</span>
+          </div>
+          <CollapsibleTrigger asChild className="ml-auto">
+            <Button variant="ghost">
+              {collapsed ? "Show Details" : "Hide Details"}
+              <ChevronDown
+                className={clsx("h-4 w-4 ml-1 transition-transform", !collapsed && "rotate-180")}
+              />
+            </Button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            {device.approved ? (
+              <>
+                {/* SSH Section */}
+                <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="h-4 w-4" />
+                      <span className="text-sm font-medium">SSH</span>
+                      <span className="text-xs text-muted-foreground">:{device.sshPort}</span>
+                    </div>
+                    {sshMutation.isPending && (
+                      <Loader2 className="h-4 w-4 ml-auto mr-2 animate-spin text-blue-500" />
+                    )}
+                    <Switch
+                      checked={device.sshOn}
+                      onCheckedChange={checked => {
+                        removeConnection?.(device.guacSshConnectionId!);
+                        sshMutation.mutate({
+                          deviceId: device.id,
+                          type: "ssh",
+                          enable: checked,
+                        });
+                      }}
+                    />
+                  </div>
+                  {device.sshOn && (
+                    <>
+                      {device.runningTunnels.length ? (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">Ports:</span>
+                          {device.runningTunnels.map(tunnel => (
+                            <span className="text-xs text-green-500" key={tunnel.pid}>
+                              {tunnel.local}:{tunnel.remote}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-red-500">SSH Tunnel Not Running</span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs"
+                        disabled={sshTunnelRunning}
+                        onClick={() => {
+                          const connection: Connection = {
+                            deviceName: device.name || `Device ${device.id}`,
+                            connectionId: device.guacSshConnectionId!,
+                            deviceId: device.id,
+                            localPort: device.sshLocalPort,
+                            port: device.sshPort,
+                            connectedAt: new Date().toISOString(),
+                            type: "ssh",
+                          };
+
+                          addConnection?.(connection);
+                          setActiveConnection(connection);
+                        }}
+                      >
+                        <Network className="h-3 w-3 mr-1" />
+                        {sshTunnelRunning ? "SSH Active" : "Connect SSH"}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {/* VNC Section */}
+                {device.vncEnabled && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4" />
+                        <span className="text-sm font-medium">VNC</span>
+                        <span className="text-xs text-muted-foreground">:{device.vncPort}</span>
+                      </div>
+                      {sshMutation.isPending && (
+                        <Loader2 className="h-4 w-4 ml-auto mr-2 animate-spin text-blue-500" />
+                      )}
+                      <Switch
+                        checked={device.vncOn}
+                        onCheckedChange={checked => {
+                          removeConnection?.(device.guacVncConnectionId!);
+                          sshMutation.mutate({
+                            deviceId: device.id,
+                            type: "vnc",
+                            enable: checked,
+                          });
+                        }}
+                      />
+                    </div>
+                    {device.vncOn && (
+                      <>
+                        <div>
+                          {device.vncServerRunning ? (
+                            <span className="text-xs text-green-500">VNC Server Running</span>
+                          ) : (
+                            <span className="text-xs text-red-500">VNC Server Not Running</span>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-xs"
+                          disabled={vncTunnelRunning}
+                          onClick={() => {
+                            const connection: Connection = {
+                              deviceName: device.name || `Device ${device.id}`,
+                              connectionId: device.guacVncConnectionId!,
+                              deviceId: device.id,
+                              localPort: undefined, // VNC doesn't use local port
+                              port: device.vncPort,
+                              connectedAt: new Date().toISOString(),
+                              type: "vnc",
+                            };
+
+                            addConnection?.(connection);
+                            setActiveConnection(connection);
+                          }}
+                        >
+                          <Monitor className="h-3 w-3 mr-1" />
+                          {vncTunnelRunning ? "VNC Active" : "Connect VNC"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 )}
-              >
-                <i className="font-mono">[{tunnel.local}]</i>
-                {"→"}
-                <i className="font-mono">[{tunnel.remote}]</i>
-              </span>
-            ))
-          }
-        </div>
-
-        <div>
-          {device.vncOn ? (
-            <span
-              className={clsx(
-                "font-semibold",
-                device.vncServerRunning ? "text-green-500" : "text-orange-600",
-              )}
-            >
-              VNC enabled {device.vncServerRunning ? "and running" : "but not running"}
-            </span>
-          ) : (
-            <span
-              className={clsx(
-                "font-semibold",
-                device.vncServerRunning ? "text-orange-600" : "text-gray-500",
-              )}
-            >
-              VNC disabled {device.vncServerRunning ? "but running" : "and not running"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-2 ml-auto">
-        {!device.approved && !!device.pin && (
-          <DeviceApproveForm deviceId={device.id} pin={device.pin} />
-        )}
-
-        {device.approved && !sshTunnelRunning && (
-          <button
-            type="button"
-            disabled={sshMutation.isPending}
-            className={`${
-              device.sshOn ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
-            } text-white px-3 py-1 rounded disabled:opacity-50`}
-            onClick={() =>
-              sshMutation.mutate({
-                deviceId: device.id,
-                type: "ssh",
-              })
-            }
-          >
-            {device.sshOn ? "Disable SSH" : "Enable SSH"}
-          </button>
-        )}
-
-        {device.approved && !vncTunnelRunning && (
-          <button
-            type="button"
-            disabled={sshMutation.isPending}
-            className={`${
-              device.sshOn ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
-            } text-white px-3 py-1 rounded disabled:opacity-50`}
-            onClick={() =>
-              sshMutation.mutate({
-                deviceId: device.id,
-                type: "vnc",
-              })
-            }
-          >
-            {device.vncOn ? "Disable VNC" : "Enable VNC"}
-          </button>
-        )}
-
-        {!!device.guacSshConnectionId && (
-          <button
-            type="button"
-            disabled={device.sshOn === false}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded disabled:opacity-50"
-            onClick={() => {
-              if (!sshTunnelRunning) {
-                addConnection?.({
-                  connectionId: device.guacSshConnectionId!,
-                  deviceId: device.id,
-                  type: "ssh",
-                });
-              } else if (device.guacSshConnectionId) {
-                removeConnection?.(device.guacSshConnectionId);
-              }
-            }}
-          >
-            {sshTunnelRunning
-              ? "Stop SSH Tunnel"
-              : "Start SSH Tunnel"}
-          </button>
-        )}
-
-        {device.vncServerRunning && !!device.guacVncConnectionId && (
-          <button
-            type="button"
-            disabled={device.sshOn === false}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded disabled:opacity-50"
-            onClick={() => {
-              if (!vncTunnelRunning) {
-                addConnection?.({
-                  connectionId: device.guacVncConnectionId!,
-                  deviceId: device.id,
-                  type: "vnc",
-                });
-              } else if (device.guacVncConnectionId) {
-                removeConnection?.(device.guacVncConnectionId);
-              }
-            }}
-          >
-            {vncTunnelRunning
-              ? "Stop VNC Tunnel"
-              : "Start VNC Tunnel"}
-          </button>
-        )}
-
-        {device.approved && (
-          <button
-            type="button"
-            disabled={unregisterMutation.isPending}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded disabled:opacity-50"
-            onClick={() => unregisterMutation.mutate({ deviceId: device.id })}
-          >
-            Unregister Device
-          </button>
-        )}
-      </div>
-    </li>
+              </>
+            ) : (
+              !!device.pin && <DeviceApproveForm deviceId={device.id} pin={device.pin} />
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
   );
 }

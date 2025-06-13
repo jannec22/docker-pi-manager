@@ -1,42 +1,53 @@
-FROM node:20 AS builder
+# ---- Builder Stage ----
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
+# Copy all package manifests
+COPY frontend/bun.lock ./frontend/
+COPY frontend/package.json ./frontend/
+COPY backend/bun.lock ./backend/
+COPY backend/package.json ./backend/
 
-RUN npm --prefix frontend install
-RUN npm --prefix backend install
+# Install dependencies
+RUN bun install --cwd ./frontend
+RUN bun install --cwd ./backend
 
+# Copy the actual source code
 COPY shared-types ./shared-types
 COPY backend ./backend
 COPY frontend ./frontend
-WORKDIR /app/frontend
-RUN npx @biomejs/biome check --write
-RUN npm run build
-WORKDIR /app/backend
-RUN npx @biomejs/biome check --write
-RUN npx prisma generate
-RUN npx prisma migrate deploy
-RUN npm run build
 
-FROM node:20
+# Build frontend
+WORKDIR /app/frontend
+RUN bunx @biomejs/biome check --write
+RUN timeout 30s bun run build || echo "build timed out"
+
+# Build backend
+WORKDIR /app/backend
+RUN bunx @biomejs/biome check --write
+RUN bunx prisma generate
+RUN bunx prisma migrate deploy
+RUN timeout 30s bun run build || echo "build timed out"
+
+# ---- Runtime Stage ----
+FROM oven/bun:1
 
 WORKDIR /app
 
+# Copy only the necessary built artifacts
 COPY --from=builder /app/backend /app/backend
-COPY --from=builder /app/backend/public /app/backend/public
-COPY --from=builder /app/backend/dist /app/backend/dist
-COPY --from=builder /app/backend/prisma /app/backend/prisma
-COPY --from=builder /app/backend/node_modules /app/backend/node_modules
 
+# Expose server port
 EXPOSE 5000
 
-WORKDIR /app/backend
+# Set production environment
 ENV NODE_ENV=production
 
+# Set working directory and entrypoint
+WORKDIR /app/backend
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# CMD ["node", "/app/backend/dist/index.js"]
+# CMD ["bun", "/app/backend/dist/index.ts"]

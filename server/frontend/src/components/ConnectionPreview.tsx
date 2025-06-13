@@ -1,29 +1,39 @@
+import clsx from "clsx";
 import Guacamole from "guacamole-client";
-import { useContext, useEffect, useRef, useState } from "react";
+import { Unplug } from "lucide-react";
+import { type Dispatch, type SetStateAction, useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "../context/auth.ctx";
 import { type Connection, ConnectionContext } from "../context/connection.ctx";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { useSidebar } from "./ui/sidebar";
 
 interface Props {
   connection: Connection;
+  setActiveConnection: Dispatch<SetStateAction<Connection | null>>;
 }
 
 const SUPER_L = 65511;
 const CTRL_L = 65507;
 const SHIFT_L = 65505;
 
-export default function ConnectionListItem({ connection }: Props) {
+export default function ConnectionPreview({ connection, setActiveConnection }: Props) {
   const tunnelDomRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<Guacamole.Client | null>(null);
+  const [connected, setConnected] = useState<boolean>(false);
   const { removeConnection } = useContext(ConnectionContext) || {};
   const { guacAuth } = useContext(AuthContext) || {};
 
   const [error, setError] = useState<string | null>(null);
+  const { open } = useSidebar();
 
   useEffect(() => {
     if (clientRef.current) {
       // Disconnect existing client if it exists
       clientRef.current.disconnect();
     }
+
+    setConnected(false);
 
     if (!guacAuth?.authToken) {
       console.error("No Guacamole auth token available");
@@ -48,6 +58,7 @@ export default function ConnectionListItem({ connection }: Props) {
       if (state === 5) {
         console.log("Disconnected from Guacamole server");
         removeConnection?.(connection.connectionId);
+        setActiveConnection(null); // Clear active connection
       }
       if (state === 1) {
         // Handle connecting logic here if needed
@@ -57,6 +68,7 @@ export default function ConnectionListItem({ connection }: Props) {
         // Handle connected logic here if needed
         console.log("Connected to Guacamole server");
         setError(null); // Clear any previous errors
+        setConnected(true);
       }
     };
 
@@ -140,10 +152,7 @@ export default function ConnectionListItem({ connection }: Props) {
         isShiftPressed = false;
       }
 
-      if (
-        wasSuperPressed &&
-        (keysym === SUPER_L || keysym === CTRL_L || keysym === SHIFT_L)
-      ) {
+      if (wasSuperPressed && (keysym === SUPER_L || keysym === CTRL_L || keysym === SHIFT_L)) {
         console.log("Sending super key release");
         clientRef.current?.sendKeyEvent(0, SUPER_L); // ctrl shift is super
       } else {
@@ -162,29 +171,102 @@ export default function ConnectionListItem({ connection }: Props) {
       clientRef.current?.disconnect();
       clientRef.current = null;
     };
-  }, [guacAuth?.authToken, guacAuth?.dataSource, connection.connectionId, removeConnection]);
+  }, [
+    guacAuth?.authToken,
+    guacAuth?.dataSource,
+    connection.connectionId,
+    removeConnection,
+    setActiveConnection,
+  ]);
+
+  useEffect(() => {
+    let timer: number | null = null;
+
+    // assign on resize handlers to resize the tunnel
+    const handleResize = () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = window.setTimeout(() => {
+        const mainView = document.getElementById("main-view");
+
+        if (tunnelDomRef.current && clientRef.current && mainView) {
+          const rect = mainView.getBoundingClientRect();
+          const tunnelRect = tunnelDomRef.current.getBoundingClientRect();
+
+          // get tunnel rect distances to parent rect
+          const originalDistToBottom = rect.bottom - tunnelRect.bottom;
+          const originalDistToRight = rect.right - tunnelRect.right;
+          const originalDistToLeft = tunnelRect.left - rect.left;
+          const originalDistToTop = tunnelRect.top - rect.top;
+
+          const width = Math.floor(rect.width - originalDistToLeft - originalDistToRight);
+          const height = Math.floor(rect.height - originalDistToBottom - originalDistToTop);
+
+          clientRef.current.sendSize(width, height);
+        }
+      }, 100);
+    };
+
+    timer = window.setTimeout(() => {
+      handleResize(); // Initial resize
+      console.log("resize", open);
+    }, 500);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open]);
 
   return (
-    <>
-      <button
-        type="button"
-        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        onClick={() => removeConnection?.(connection.connectionId)}
-      >
-        Stop Tunnel
-      </button>
-      <div
-        ref={tunnelDomRef}
-        className="mt-2 w-full flex h-[50%] border rounded-md overflow-hidden"
-      >
-        <p className="text-center m-auto text-gray-500">Loading Guacamole connection...</p>
-      </div>
+    <Card className="grow flex flex-col">
+      <CardHeader className="flex flex-row justify-between p-2">
+        <CardTitle className="text-lg">
+          {connection.type.toUpperCase()} - {connection.deviceName}
+        </CardTitle>
 
-      {error && (
-        <div className="mt-2 text-red-600">
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-    </>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => {
+            removeConnection?.(connection.connectionId);
+            setActiveConnection(null);
+          }}
+        >
+          <Unplug className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="grow relative flex flex-col p-0 rounded-b-md">
+        <div
+          ref={tunnelDomRef}
+          className={clsx(
+            "flex grow bg-secondary max-w-screen max-h-full overflow-auto",
+            !connected && "invisible",
+          )}
+        />
+
+        {!connected && (
+          <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
+            <div className="text-muted-foreground text-center">
+              <p className="text-lg">Connecting...</p>
+              <p className="text-sm mt-2">Please wait while we establish the connection.</p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-secondary/50">
+            <div className="text-muted-foreground text-center">
+              <p className="text-lg">Error...</p>
+              <p className="text-sm text-rose-500 mt-2">{error}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -22,6 +22,7 @@ export interface DeviceSshMessage extends BaseMessage {
   sshLocalPort?: number;
 
   vncPort: number;
+  vncServerPassword: string;
   vncServerParams?: VncServerParams;
 
   user: string;
