@@ -1,3 +1,6 @@
+
+# ---- Node Source ----
+FROM node:23-slim AS node-base
 # ---- Builder Stage ----
 FROM oven/bun:1 AS builder
 
@@ -38,8 +41,6 @@ WORKDIR /app
 # Copy only the necessary built artifacts
 COPY --from=builder /app/backend /app/backend
 
-# ---- Node Source ----
-FROM node:20-slim AS node-base
 COPY --from=node-base /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-base /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node-base /usr/local/bin/npm /usr/local/bin/npm
