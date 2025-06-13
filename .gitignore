@@ -1,3 +1,5 @@
-guacamole/config/*
+guacamole/config/**
+!guacamole/config/guacamole/
+guacamole/config/guacamole/**
 # except the guacamole.properties file
 !guacamole/config/guacamole/guacamole.properties
