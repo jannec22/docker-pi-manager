@@ -2,6 +2,10 @@
 
 This project provides a fully dockerized solution to remotely manage and access SSH-enabled IoT devices (e.g., Raspberry Pi) behind NAT. It leverages reverse SSH, a central server, and Apache Guacamole for secure, browser-based terminal access.
 
+<!-- image from screenshots/screenshot.png -->
+![Screenshot](screenshots/screenshot.png)
+
+
 ## Features
 
 - **Secure reverse SSH**: Devices initiate outbound SSH tunnels to a public server.  
@@ -36,8 +40,8 @@ Browser → Guacamole → Server → ssh-listener ← Reverse SSH ← Device
 
 ## Getting Started
 
-1. Clone the repository.
-3. populate .env in server/backend/.env
+1. Clone repo
+3. populate .env in server/backend/.env (use .env.example as example)
 2. Run the stack:
 
    ```bash

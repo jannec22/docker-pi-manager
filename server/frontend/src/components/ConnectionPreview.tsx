@@ -28,6 +28,7 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
   const { open } = useSidebar();
 
   useEffect(() => {
+    let ignore = false;
     if (clientRef.current) {
       // Disconnect existing client if it exists
       clientRef.current.disconnect();
@@ -59,6 +60,7 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
         console.log("Disconnected from Guacamole server");
         removeConnection?.(connection.connectionId);
         setActiveConnection(null); // Clear active connection
+        ignore = true; // Ignore further updates
       }
       if (state === 1) {
         // Handle connecting logic here if needed
@@ -82,9 +84,6 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
       tunnelDomRef.current.innerHTML = "";
       const displayEl = clientRef.current.getDisplay().getElement();
       tunnelDomRef.current.appendChild(displayEl);
-
-      displayEl.tabIndex = 1; // Make it focusable
-      displayEl.focus();
     }
 
     // Connect
@@ -103,6 +102,8 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
 
     clientRef.current.connect(params.toString());
 
+    console.info("Setting up keyboard and mouse listeners");
+
     const mouse = new Guacamole.Mouse(clientRef.current.getDisplay().getElement());
 
     mouse.onmousedown =
@@ -119,6 +120,10 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
     let isShiftPressed = false;
 
     keyboard.onkeydown = (keysym: number) => {
+      if (ignore) {
+        console.warn("Ignoring keydown event because connection is no longer active");
+        return;
+      }
       const wasSuperPressed = isCtrlPressed && isShiftPressed;
 
       if (keysym === SUPER_L || keysym === CTRL_L) {
@@ -143,6 +148,10 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
     };
 
     keyboard.onkeyup = (keysym: number) => {
+      if (ignore) {
+        console.warn("Ignoring keyup event because connection is no longer active");
+        return;
+      }
       const wasSuperPressed = isCtrlPressed && isShiftPressed;
 
       if (keysym === SUPER_L || keysym === CTRL_L) {
@@ -161,6 +170,10 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
       }
     };
 
+    // Focus the display element
+    const displayEl = clientRef.current?.getDisplay().getElement();
+    displayEl.tabIndex = 1; // Make it focusable
+
     return () => {
       console.log("cleaning up connection");
       mouse.onmousedown = null;
@@ -168,6 +181,7 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
       mouse.onmousemove = null;
       keyboard.onkeydown = null;
       keyboard.onkeyup = null;
+      keyboard.reset();
       clientRef.current?.disconnect();
       clientRef.current = null;
     };
@@ -205,6 +219,10 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
 
           clientRef.current.sendSize(width, height);
         }
+
+        console.log("focusing display element after resize");
+        const displayEl = clientRef.current?.getDisplay().getElement();
+        displayEl?.focus();
       }, 100);
     };
 
@@ -222,8 +240,22 @@ export default function ConnectionPreview({ connection, setActiveConnection }: P
     };
   }, [open]);
 
+  useEffect(() => {
+    // focus the display element when connected
+    if (connected) {
+      console.log("Focusing display element on connect");
+      const displayEl = clientRef.current?.getDisplay().getElement();
+      displayEl?.focus();
+    }
+  }, [connected]);
+
   return (
-    <Card className="grow flex flex-col">
+    <Card className="grow flex flex-col" onClick={()=>{
+      console.log("Focusing display element");
+
+      const displayEl = clientRef.current?.getDisplay().getElement();
+      displayEl?.focus();
+    }}>
       <CardHeader className="flex flex-row justify-between p-2">
         <CardTitle className="text-lg">
           {connection.type.toUpperCase()} - {connection.deviceName}
